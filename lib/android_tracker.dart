@@ -1,27 +1,64 @@
 import 'package:flutter/services.dart';
 
 class AndroidTracker {
-  static const MethodChannel _channel = MethodChannel('com.tracker/android');
+  static const MethodChannel _channel = MethodChannel('com.playwell/tracker');
 
-  /// Checks if Usage Access permission is turned on
-  static Future<bool> hasUsagePermission() async {
-    final bool granted = await _channel.invokeMethod('checkPermission');
-    return granted;
+  static Future<bool> checkPermission() async {
+    try {
+      final bool hasPermission = await _channel.invokeMethod('checkPermission');
+      return hasPermission;
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// Opens Android Settings so the user can grant permission
-  static Future<void> openPermissionSettings() async {
-    await _channel.invokeMethod('openPermissionSettings');
+  static Future<void> requestPermission() async {
+    try {
+      await _channel.invokeMethod('requestPermission');
+    } catch (_) {}
   }
 
-  /// Returns active app package name (e.g. "com.mojang.minecraftpe")
+  static Future<void> requestIgnoreBatteryOptimizations() async {
+    try {
+      await _channel.invokeMethod('requestIgnoreBatteryOptimizations');
+    } catch (_) {}
+  }
+
+  static Future<void> startForegroundService() async {
+    try {
+      await _channel.invokeMethod('startForegroundService');
+    } catch (_) {}
+  }
+
+  static Future<void> stopForegroundService() async {
+    try {
+      await _channel.invokeMethod('stopForegroundService');
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, String>>> getInstalledApps() async {
+    try {
+      final List<dynamic> apps = await _channel.invokeMethod(
+        'getInstalledApps',
+      );
+      return apps.map((e) => Map<String, String>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   static Future<String?> getActivePackageName() async {
-    final String? pkg = await _channel.invokeMethod('getForegroundPackage');
-    return pkg;
+    try {
+      final String? pkg = await _channel.invokeMethod('getForegroundApp');
+      return pkg;
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Minimizes/blocks game by redirecting user to home screen
   static Future<void> killGameToHome() async {
-    await _channel.invokeMethod('killGameToHome');
+    try {
+      await _channel.invokeMethod('killToHome');
+    } catch (_) {}
   }
 }
