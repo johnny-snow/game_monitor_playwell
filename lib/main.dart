@@ -245,8 +245,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (!mounted) return;
 
       final currentPkg = await AndroidTracker.getActivePackageName();
-
-      // FIX: Add null check right here so it doesn't crash or fail to compile
       if (currentPkg == null) return;
 
       final trackedGames = await DatabaseHelper.instance.getTrackedGames();
@@ -259,17 +257,35 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (matchingGame.isNotEmpty) {
         final String appName = matchingGame['app_name'] ?? currentPkg;
 
-        if (_todayPlayedSeconds >= (_targetMinutes * 60) &&
-            _targetMinutes > 0) {
-          setState(() => _limitReached = true);
-          await AndroidTracker.killGameToHome();
-          _showLimitReachedDialog(appName);
-          return;
+        // 1. Calculate today's time target in seconds
+        final targetSeconds = _targetMinutes * 60;
+
+        // 2. CHECK IF OVER THE DAILY TARGET LIMIT
+        if (_todayPlayedSeconds >= targetSeconds && targetSeconds > 0) {
+          if (mounted) {
+            setState(() {
+              _limitReached = true;
+              _activeAppName = "$appName (Blocked)";
+              _isGameRunning = false;
+            });
+          }
+
+          // Immediately boot the user out of the blocked game
+          await AndroidTracker.killGameToHome(currentPkg);
+
+          if (!mounted) return;
+
+          // Only show the dialog if it isn't already visible on screen
+          if (ModalRoute.of(context)?.isCurrent ?? true) {
+            _showLimitReachedDialog(appName);
+          }
+          return; // Stop tracking time for THIS blocked game tick
         }
 
+        // 3. IF UNDER LIMIT, TRACK TIME NORMALLY
         await DatabaseHelper.instance.addPlayTime(
           widget.profileName,
-          currentPkg, // Null safe now
+          currentPkg,
           1,
         );
 
@@ -278,13 +294,17 @@ class _DashboardScreenState extends State<DashboardScreen>
             _todayPlayedSeconds += 1;
             _activeAppName = appName;
             _isGameRunning = true;
+            _limitReached =
+                false; // Reset limit flag so other games/sessions function properly
           });
         }
       } else {
-        if (mounted && _isGameRunning) {
+        // No tracked game running in foreground
+        if (mounted && (_isGameRunning || _limitReached)) {
           setState(() {
             _activeAppName = "No game active";
             _isGameRunning = false;
+            _limitReached = false;
           });
         }
       }

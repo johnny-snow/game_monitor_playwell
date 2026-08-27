@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 class AndroidTracker {
   static const MethodChannel _channel = MethodChannel('com.playwell/tracker');
@@ -56,9 +57,11 @@ class AndroidTracker {
     }
   }
 
-  static Future<void> killGameToHome() async {
+  static Future<void> killGameToHome([String? packageName]) async {
     try {
-      await _channel.invokeMethod('killToHome');
-    } catch (_) {}
+      await _channel.invokeMethod('killToHome', {'packageName': packageName});
+    } on PlatformException catch (e) {
+      debugPrint("Failed to kill game: '${e.message}'.");
+    }
   }
 }

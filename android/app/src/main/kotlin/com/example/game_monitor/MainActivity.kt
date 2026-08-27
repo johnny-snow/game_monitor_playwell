@@ -69,9 +69,10 @@ class MainActivity: FlutterActivity() {
                     result.success(getForegroundAppPackage())
                 }
                 "killToHome" -> {
-                    killGameToHome()
-                    result.success(true)
-                }
+    val pkgName = call.argument<String>("packageName")
+    killGameToHome(pkgName)
+    result.success(true)
+}
                 else -> result.notImplemented()
             }
         }
@@ -146,16 +147,30 @@ class MainActivity: FlutterActivity() {
         return currentApp
     }
 
-    private fun killGameToHome() {
-        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_HOME)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-        }
-        startActivity(homeIntent)
+    private fun killGameToHome(packageName: String?) {
+    // 1. Send home command to minimize all foreground tasks
+    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_HOME)
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+    startActivity(homeIntent)
 
-        val appIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+    // 2. Kill any background threads/processes allowed by Android OS
+    if (!packageName.isNullOrEmpty()) {
+        try {
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            am.killBackgroundProcesses(packageName)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // 3. Launch PlayWell on top after a micro-delay to prevent flag collisions
+    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+        val appIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         startActivity(appIntent)
-    }
+    }, 300)
+}
 }
